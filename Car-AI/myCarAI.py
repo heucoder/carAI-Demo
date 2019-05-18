@@ -1,164 +1,182 @@
-#遗传算法与神经网络
-import torch
-from torch import nn
+#coding: utf-8
+
+# 遗传算法与神经网络
 import numpy as np
 from copy import deepcopy
-#神经网络
+# 神经网络
+# 数据层
 class Data:
     def __init__(self, x):
         self.x = x
-
     def forward(self):
         # Mini-batch
         return self.x
 
+# 全连接层
 class FullyConnect:
     def __init__(self, l_x, l_y, weights = None, bias = None):
         self.l_x = l_x
         self.l_y = l_y
         self.weights = np.random.randn(l_y, l_x) * np.sqrt(2 / l_x)
         self.bias = np.random.randn(l_y, 1)
-
     def forward(self, x):
         self.y = np.dot(self.weights, x) + self.bias
         return self.y
 
+# Sigmoid
 class Sigmoid:
     def __init__(self):
         pass
     def sigmoid(self, x):
-        # x = np.maximum(x,100)
         return 1/(1+np.exp(-x))
+
     def forward(self, x):
         self.x = x
         self.y = self.sigmoid(x)
         return self.y
 
+# 控制小车的AI
 class carAI:
-    def __init__(self):
-        self.linear1 = FullyConnect(7,15)
-        self.linear2 = FullyConnect(15,2)
+    def __init__(self,node_list = [7,15,2]):
+        self.fullyconnect_list = []
+        for i in range(len(node_list) - 1):
+            linear = FullyConnect(node_list[i], node_list[i+1])
+            self.fullyconnect_list.append(linear)
 
+    # 调整速度与方向
+    def _adjust(self, t, v1, v2):
+        if t < v1:
+            return -1
+        elif t > v2:
+            return 1
+    def _car_v_adjust(self, v_flag, v_thre1 = 0.3, v_thre2 = 0.7):
+        car_v = self._adjust(v_flag, v_thre1, v_thre2)
+        return car_v
+    def _car_dir_adjust(self, dir_flag, dir_thre1 = 0.2, dir_thre2 = 0.8):
+        car_dir = self._adjust(dir_flag, dir_thre1, dir_thre2)
+        return car_dir
+    
     def forward(self,x):
-        x = self.linear1.forward(x)
-        x = Sigmoid().forward(x)
-        x = self.linear2.forward(x)
-        x = Sigmoid().forward(x)
-        com1 = x[0][0]
-        com2 = x[1][0]
-        v = 0
-        dir = 0
-        if com1 < 0.3:
-            v = -1
-        elif com1 > 0.7:
-            v= 1
-        else:
-            v = 0
-        if com2 < 0.2:
-            dir = -1
-        elif com2 > 0.8:
-            dir = 1
-        else:
-            dir = 0
-        return (v,dir)
+        for linear in self.fullyconnect_list:
+            x = linear.forward(x)
+            x = Sigmoid().forward(x)
+        
+        # 方向
+        dir_flag = x[0][0]
+        # 速度
+        v_flag = x[1][0]
+        car_v = self._car_v_adjust(v_flag)
+        car_dir = self._car_dir_adjust(dir_flag)
 
+        return (car_v, car_dir)
+    
+    # 重新赋予权值,与get_weights配对使用
     def assign_weights(self, weightsList = None, biasList = None):
-        self.linear1.weights = deepcopy(weightsList[0])
-        self.linear1.bias = deepcopy(biasList[0])
-        self.linear2.weights = deepcopy(weightsList[1])
-        self.linear2.bias = deepcopy(biasList[1])
+        for i in range(len(self.fullyconnect_list)):
+            linear = self.fullyconnect_list[i]
+            linear.weights = deepcopy(weightsList[i])
+            linear.bias = deepcopy(biasList[i])
 
+    # 获得权值
     def get_weights(self):
         weightsList = []
         biasList = []
-        weightsList.append(self.linear1.weights)
-        weightsList.append(self.linear2.weights)
-        biasList.append(self.linear1.bias)
-        biasList.append(self.linear2.bias)
+
+        for i in range(len(self.fullyconnect_list)):
+            linear = self.fullyconnect_list[i]
+            weightsList.append(linear.weights)
+            biasList.append(linear.bias)
+
         return weightsList, biasList
 
     def save(self, filename):
-        filename += '.npz'
-        np.savez(filename, linear1_weight = self.linear1.weights, linear1_bias = self.linear1.bias,
-                 linear2_weight = self.linear2.weights, linear2_bias = self.linear2.bias)
+        np.savez(filename, fullyconnect_list = np.array(self.fullyconnect_list))
 
     def load(self, filename):
         para = np.load(filename)
-        self.linear1.weights = deepcopy(para['linear1_weight'])
-        self.linear1.bias = deepcopy(para['linear1_bias'])
-        self.linear2.weights = deepcopy(para['linear2_weight'])
-        self.linear2.bias = deepcopy(para['linear2_bias'])
+        self.fullyconnect_list = list(deepcopy(para['fullyconnect_list']))
 
-#扰动
-def fun1(weightsList, biasList, k, r = 0.1):
-    carAIs = []
-    for i in range(k):
-        carai = carAI()
-        w = deepcopy(weightsList)
-        b = deepcopy(biasList)
-        for i in range(len(w)):
-            n,m = w[i].shape
-            w[i] += r*np.random.randn(n, m)
-        for i in range(len(b)):
-            n,m = b[i].shape
-            b[i] += r*np.random.randn(n, m)
-        carai.assign_weights(w,b)
-        carAIs.append(carai)
-    return carAIs
-
-#随机扰动
-def fun2(weightsList,biasList,k):
-    carAIs = []
-    for i in range(k):
-        carai = carAI()
-        carAIs.append(carai)
-        w = deepcopy(weightsList)
-        b = deepcopy(biasList)
-        for i in range(len(w)):
-            t = np.random.rand(1)[0]
-            if t < 0.3:
+class GeneOptimize:
+    def __init__(self):
+        pass
+    # 扰动
+    @classmethod
+    def _distur_param(self, weightsList, biasList, k, r = 0.1):
+        carAIs = []
+        for i in range(k):
+            carai = carAI()
+            w = deepcopy(weightsList)
+            b = deepcopy(biasList)
+            for i in range(len(w)):
                 n,m = w[i].shape
-                w[i] += np.random.randn(n, m)
-        for i in range(len(b)):
-            t = np.random.rand(1)[0]
-            if t < 0.7:
+                w[i] += r*np.random.randn(n, m)
+            for i in range(len(b)):
                 n,m = b[i].shape
-                b[i] += np.random.randn(n, m)
-        carai.assign_weights(w,b)
-        carAIs.append(carai)
-    return carAIs
+                b[i] += r*np.random.randn(n, m)
+            
+            carai.assign_weights(w,b)
+            carAIs.append(carai)
+        return carAIs
 
-#遗传算法
-#输入父母亲上次最好的那个
-def gene_algo(parcarAI, n):
-    carAIs = []
-    carAIs.append(parcarAI)
-    k1 = n//4; k2 = n - 3*k1-1
-    #一半权值小幅度扰动(0.1,0.3)
-    #1/4权值大幅度扰动(0.6)
-    #1/4随机一个层(使用np.random.randn)
-    weightsList, biasList = parcarAI.get_weights()
-    #0.1
-    carAIs.extend(fun1(weightsList, biasList, k1, 0.1))
-    #0.2
-    carAIs.extend(fun1(weightsList, biasList, k1, 0.5))
-    #0.6
-    carAIs.extend(fun1(weightsList, biasList, k1, 0.8))
-    #随机扰动一层
-    carAIs.extend(fun2(weightsList, biasList, k2))
-    return carAIs
+    # 替换
+    @classmethod
+    def _replace_one_layer_param(self, weightsList,biasList,k):
+        carAIs = []
+        for i in range(k):
+            carai = carAI()
+            carAIs.append(carai)
+            w = deepcopy(weightsList)
+            b = deepcopy(biasList)
+            for i in range(len(w)):
+                t = np.random.rand(1)[0]
+                if t < 0.3:
+                    n,m = w[i].shape
+                    w[i] += np.random.randn(n, m)
+            for i in range(len(b)):
+                t = np.random.rand(1)[0]
+                if t < 0.7:
+                    n,m = b[i].shape
+                    b[i] += np.random.randn(n, m)
+            carai.assign_weights(w,b)
+            carAIs.append(carai)
+        return carAIs
+
+    #遗传算法
+    #输入父母亲上次最好的那个
+    @classmethod
+    def gene_algo(self, parcarAI, n):
+        carAIs = []
+        carAIs.append(parcarAI)
+        k1 = n//4; k2 = n - 3*k1-1
+        #一半权值小幅度扰动(0.1,0.3)
+        #1/4权值大幅度扰动(0.6)
+        #1/4随机一个层(使用np.random.randn)
+        weightsList, biasList = parcarAI.get_weights()
+        #0.1
+        carAIs.extend(self._distur_param(weightsList, biasList, k1, 0.1))
+        #0.2
+        carAIs.extend(self._distur_param(weightsList, biasList, k1, 0.5))
+        #0.6
+        carAIs.extend(self._distur_param(weightsList, biasList, k1, 0.8))
+        #随机扰动一层
+        carAIs.extend(self._replace_one_layer_param(weightsList, biasList, k2))
+        print("-------", parcarAI.get_weights() == carAIs[0].get_weights())
+        return carAIs
 
 if __name__ == '__main__':
-    carai_1 = carAI()
+    carai = carAI()
+    car_ai3 = carAI()
 
     a = np.random.randn(7,1)
-    v, dir = carai_1.forward(a)
-    w, b = carai_1.get_weights()
-    # carAIs = gene_algo(carai_1, 10)
-    # carat_2 = carAIs[0]
-    # v2,dir2 = carat_2.forward(a)
+    v, dir = carai.forward(a)
+    w, b = carai.get_weights()
+    carAIs = GeneOptimize.gene_algo(carai, 10)
+    carat_2 = carAIs[1]
+    v2,dir2 = carat_2.forward(a)
     carai_2 = carAI()
+    carai.save("test1.npz")
     carai_2.load("test1.npz")
+    print("-------", carai.get_weights()[0][0] == carai_2.get_weights()[0][0])
 
 
 

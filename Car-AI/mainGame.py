@@ -1,3 +1,5 @@
+#coding: utf-8
+
 import pygame
 from pygame.locals import *
 from sys import exit
@@ -7,6 +9,7 @@ import copy
 import myItem
 import myCarAI
 
+# 绘制地图
 def mapPaint(pygame, screen, BigCircle, smallCircle):
     screen.fill((255, 255, 255))
     # 绘制地图
@@ -14,8 +17,8 @@ def mapPaint(pygame, screen, BigCircle, smallCircle):
     pygame.draw.circle(screen, smallCircle.rc, smallCircle.rp, smallCircle.rr)
     pygame.draw.rect(screen, (0, 0, 255), Rect((0, 1), (30, 158)))
 
+# 绘制小车
 def carPaint(pygame, screen, cars):
-    # 绘制小车
     for i in range(len(cars)):
         car = cars[i]
         pygame.draw.rect(screen, (0, 255, 0), Rect((car.x, car.y), (car.size)))
@@ -30,49 +33,58 @@ def carPaint(pygame, screen, cars):
         # pygame.draw.line(screen, (0, 255, 0), (car.x + car.size[0] / 2, car.y + car.size[1] / 2),
         #                  (car.rrdis_pos[0], car.rrdis_pos[1]))
 
-#这需要很多功夫啊
+# 选择表现最好的AI
 def pick_best_AI(cars, carAis):
     bestindex = 0
     farDistance = 1000
+
     for i in range(len(cars)):
+        if cars[i].goal == True:
+            farDistance = cars[i].distance
+            bestindex = i
+            print("1")
+            break
         if cars[i].distance < farDistance:
             farDistance = cars[i].distance
             bestindex = i
-        if cars[i].goal == True:
-            bestindex = i
-            break
-    print(cars[bestindex].distance)
+        
+    print("cur best car distance: ", cars[0].distance)
     bestAI = myCarAI.carAI()
     w, b = carAis[bestindex].get_weights()
-    bestAI.assign_weights(copy.deepcopy(w), copy.deepcopy(b))
+    bestAI.assign_weights(w, b)
     return bestAI
 
+# 开始训练
 def gameStart():
     pygame.init()
     bigCircle = myItem.Circle((0,0,0), (0,320), 320)
     smallCircle = myItem.Circle((255, 255, 255), (0,320), 160)
-    #生成200辆car和200个AI
+    # 生成carnum辆car和carnum个AI
+    carnum = 100
     cars = []
     carAis = []
-    carnum = 100
     for i in range(carnum):
         cars.append(myItem.car(2, 560, (15,15)))
         carAis.append(myCarAI.carAI())
-
+    # init屏幕
     screen = pygame.display.set_mode((480, 640), 0, 32)
-    # Clock对象
+    # Clock对象，使小车运动更流畅
     clock = pygame.time.Clock()
-    for k in range(60):
-        print("第%d次--------------------"%k)
+    # 训练次数
+    n_epoches = 60
+
+    for k in range(n_epoches):
+        print("第%d次----------------------"%k)
+        # 每次的时间为1000
         for i in range(1000):
-            #手动操作
+            # 手动操作，还未加入
             for event in pygame.event.get():
                 if event.type == QUIT:
                     exit()
-            #AI
-            #input car.r  car.v car.dis-s 7 output speed, direction
-            #根据speed和direction控制小车
-            #计算移动距离
+            # AI
+            # input car.r  car.v car.dis-s 7 output speed, direction
+            # 根据speed和direction控制小车
+            # 计算移动距离
             time_passed = clock.tick(); time_passed_seconds = time_passed / 1000.
             for i in range(len(cars)):
                 car = cars[i]
@@ -83,9 +95,10 @@ def gameStart():
                 carAi = carAis[i]
                 data = np.array([car.r*3, car.v/100, car.dis_wall/300, car.ldis_wall/300,
                                  car.lldis_wall/300, car.rdis_wall/300, car.rrdis_wall/300])
-                # print(data)
+                # if i == 0:
+                #     print(data)
                 data = data.T
-                #控制方向
+                # 控制方向
                 v,dir = carAi.forward(data)
                 if v == -1:
                     car.speed_down()
@@ -95,20 +108,19 @@ def gameStart():
                     car.left_move()
                 elif dir == 1:
                     car.right_move()
+                # 到达
                 if car.is_goal() == True:
                     print("goal!")
-                    # filename = "goal"+str(i)
-                    # carAi.save(filename)
-                if car.is_live(smallCircle.rp, smallCircle.rr, bigCircle.rp, bigCircle.rr)==False:
-                    pass
-
+                # 判断is_live
+                car.is_live(smallCircle.rp, smallCircle.rr, bigCircle.rp, bigCircle.rr)
                 car.distance = car.y
 
+            # update
             mapPaint(pygame, screen, bigCircle, smallCircle)
             carPaint(pygame, screen,cars)
             pygame.display.update()
 
-            #是否结束
+            # 是否结束
             flag = 0
             for i in range(len(cars)):
                 car = cars[i]
@@ -116,12 +128,13 @@ def gameStart():
                     flag = 1
             if flag == 0: break
 
-        #选出最好的一个AI
+        # 选出最好的一个AI
         bestAI = pick_best_AI(cars, carAis)
+        # 下一轮
         cars.clear(); carAis.clear()
         for i in range(carnum):
             cars.append(myItem.car(2, 560, (15, 15)))
-        carAis = myCarAI.gene_algo(bestAI, carnum)
+        carAis = myCarAI.GeneOptimize.gene_algo(bestAI, carnum)
 
 def testAI(filename):
     pygame.init()
@@ -185,8 +198,8 @@ def testAI(filename):
 
 
 if __name__ == '__main__':
-    # gameStart()
-    filename = "goal_para/goal17.npz"
-    testAI(filename)
+    gameStart()
+    # filename = "goal_para/goal17.npz"
+    # testAI(filename)
 
 
