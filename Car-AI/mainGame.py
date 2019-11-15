@@ -93,8 +93,10 @@ def gameStart():
                 car.get_dis_to_wall((0, 320), 320, (0, 320), 160)
                 car.postion_move(time_passed_seconds)
                 carAi = carAis[i]
-                data = np.array([car.r*3, car.v/100, car.dis_wall/300, car.ldis_wall/300,
-                                 car.lldis_wall/300, car.rdis_wall/300, car.rrdis_wall/300])
+                
+                # 输入神经网络的指标( /30为了防止输入过大)
+                data = np.array([car.r/30, car.v/30, car.dis_wall/30, car.ldis_wall/30,
+                                 car.lldis_wall/30, car.rdis_wall/30, car.rrdis_wall/30])
                 # if i == 0:
                 #     print(data)
                 data = data.T
@@ -111,6 +113,7 @@ def gameStart():
                 # 到达
                 if car.is_goal() == True:
                     print("goal!")
+                    carAi.save("goal_para/goal_{}".format(str(i)))
                 # 判断is_live
                 car.is_live(smallCircle.rp, smallCircle.rr, bigCircle.rp, bigCircle.rr)
                 car.distance = car.y
@@ -162,8 +165,9 @@ def testAI(filename):
         car.postion_move(time_passed_seconds)
         car.get_dis_to_wall((0, 320), 320, (0, 320), 160)
 
-        data = np.array([car.r * 3, car.v / 100, car.dis_wall / 300, car.ldis_wall / 300,
-                         car.lldis_wall / 300, car.rdis_wall / 300, car.rrdis_wall / 300])
+        # 输入神经网络的指标( /30为了防止输入过大)
+        data = np.array([car.r/30, car.v/30, car.dis_wall/30, car.ldis_wall/30,
+                            car.lldis_wall/30, car.rdis_wall/30, car.rrdis_wall/30])
         data = data.T
         v, dir = carAi.forward(data)
         if v == -1:
@@ -198,8 +202,8 @@ def testAI(filename):
 
 
 if __name__ == '__main__':
-    gameStart()
-    # filename = "goal_para/goal17.npz"
-    # testAI(filename)
+    # gameStart()
+    filename = "goal_para/goal_76.npz"
+    testAI(filename)
 
 

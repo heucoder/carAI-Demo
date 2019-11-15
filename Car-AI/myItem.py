@@ -1,6 +1,8 @@
 #coding: utf-8
 
 import math
+
+# 半圆的轨道
 class Circle:
     def __init__(self, rc=(0,0,0), rp=(0,0), rr=1):
         # 颜色
@@ -12,28 +14,29 @@ class Circle:
 
 class car:
     def __init__(self, x, y, size=(4,8)):
-        #赛车当前位置
+        # 赛车当前位置
         self.x = x
         self.y = y
-        #赛车角度
+        # 赛车初始角度
         self.r = -5*math.pi/180
-        #赛车速度
+        # 赛车速度
         self.v = 100
         self.xv = self.v*math.cos(self.r)
         self.yv = self.v*math.sin(self.r)
-        #赛车是否存活
+        # 赛车是否存活
         self.alive = True
-        #赛车行驶了多远
+        # 赛车行驶了多远
         self.distance = 0
-        #是否抵达终点
+        # 是否抵达终点
         self.goal = False
-        #赛车距离墙距离
-        self.dis_wall = 0
-        self.ldis_wall = 0
-        self.lldis_wall = 0
-        self.rdis_wall = 0
-        self.rrdis_wall = 0
+        # 赛车距离墙距离
+        self.dis_wall = 0 # 90
+        self.ldis_wall = 0 # 135
+        self.lldis_wall = 0 # 180
+        self.rdis_wall = 0 # 45
+        self.rrdis_wall = 0 # 0
 
+        # 与墙交点的坐标，为了计算距离
         self.dis_pos = (0,0)
         self.ldis_pos = (0,0)
         self.lldis_pos = (0,0)
@@ -53,16 +56,16 @@ class car:
         self.yv = self.v*math.sin(self.r)
 
     def speed_up(self):
-        self.v += 10
+        self.v += 5
         if self.v >=200:
             self.v = 200
         self.xv = self.v*math.cos(self.r)
         self.yv = self.v*math.sin(self.r)
     
     def speed_down(self):
-        self.v -= 10
-        if self.v < 30:
-            self.v = 30
+        self.v -= 5
+        if self.v < 50:
+            self.v = 50
         self.xv = self.v*math.cos(self.r)
         self.yv = self.v*math.sin(self.r)
 
@@ -71,11 +74,11 @@ class car:
         self.y = self.y+time_passed_seconds * self.yv
 
     def cal_dis_to_wall(self, p, radius, big = 1, add_r = 0):
-        #p为圆的圆心
-        #r是园的半径
-        #分成四块就可以计算了
+        # p为圆的圆心
+        # r是园的半径
+        # 分成四块计算
 
-        #直线的bias
+        # 直线的bias
         w = math.tan(self.r+add_r)
         bias = self.y - self.x*w
         px = p[0]   #0所以先不计算
@@ -180,20 +183,24 @@ class car:
         r5 = (self.r+add_r)%(2*math.pi)
         self.rrdis_pos = self._get_onepos(x1,x2,y1,y2,r5)
         self.rrdis_wall = ((self.x-self.rrdis_pos[0])**2+(self.x - self.rrdis_pos[1])**2)**(1/2)
+    
     # 是否存活
     def is_live(self, p1, r1, p2, r2):
+        # 与赛道内侧距离
         if ((self.x-p1[0])**2+(self.y-p1[1])**2) <= (r1+3)**2:
             self.v = 0
             self.xv = self.v * math.cos(self.r)
             self.yv = self.v * math.sin(self.r)
             self.alive = False
             return False
+        # 与赛道外侧距离
         if ((self.x-p2[0])**2+(self.y-p2[1])**2) >= (r2-4)**2:
             self.v = 0
             self.xv = self.v * math.cos(self.r)
             self.yv = self.v * math.sin(self.r)
             self.alive = False
             return False
+        
         if self.x < 0:
             self.v = 0
             self.xv = self.v * math.cos(self.r)
@@ -201,6 +208,7 @@ class car:
             self.alive = False
             return False
         return True
+    
     # 是否到达目的地
     def is_goal(self):
         if self.y < 138 and self.x < 20:

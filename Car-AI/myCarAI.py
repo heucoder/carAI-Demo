@@ -3,6 +3,7 @@
 # 遗传算法与神经网络
 import numpy as np
 from copy import deepcopy
+
 # 神经网络
 # 数据层
 class Data:
@@ -27,8 +28,9 @@ class FullyConnect:
 class Sigmoid:
     def __init__(self):
         pass
+    
     def sigmoid(self, x):
-        return 1/(1+np.exp(-x))
+        return 1/(1+np.exp(-np.maximum(x,-100)))
 
     def forward(self, x):
         self.x = x
@@ -49,9 +51,11 @@ class carAI:
             return -1
         elif t > v2:
             return 1
+    # 速度
     def _car_v_adjust(self, v_flag, v_thre1 = 0.3, v_thre2 = 0.7):
         car_v = self._adjust(v_flag, v_thre1, v_thre2)
         return car_v
+    # 方向
     def _car_dir_adjust(self, dir_flag, dir_thre1 = 0.2, dir_thre2 = 0.8):
         car_dir = self._adjust(dir_flag, dir_thre1, dir_thre2)
         return car_dir
@@ -141,26 +145,26 @@ class GeneOptimize:
             carAIs.append(carai)
         return carAIs
 
-    #遗传算法
-    #输入父母亲上次最好的那个
+    # 遗传算法
+    # 输入上次最好的那个
     @classmethod
     def gene_algo(self, parcarAI, n):
         carAIs = []
         carAIs.append(parcarAI)
         k1 = n//4; k2 = n - 3*k1-1
-        #一半权值小幅度扰动(0.1,0.3)
-        #1/4权值大幅度扰动(0.6)
-        #1/4随机一个层(使用np.random.randn)
+        # 一半权值小幅度扰动(0.1,0.3)
+        # 1/4权值大幅度扰动(0.6)
+        # 1/4随机一个层(使用np.random.randn)
         weightsList, biasList = parcarAI.get_weights()
-        #0.1
+        # 0.1
         carAIs.extend(self._distur_param(weightsList, biasList, k1, 0.1))
-        #0.2
+        # 0.2
         carAIs.extend(self._distur_param(weightsList, biasList, k1, 0.5))
-        #0.6
+        # 0.6
         carAIs.extend(self._distur_param(weightsList, biasList, k1, 0.8))
-        #随机扰动一层
+        # 随机扰动一层
         carAIs.extend(self._replace_one_layer_param(weightsList, biasList, k2))
-        print("-------", parcarAI.get_weights() == carAIs[0].get_weights())
+        # print("-------", parcarAI.get_weights() == carAIs[0].get_weights())
         return carAIs
 
 if __name__ == '__main__':
@@ -170,13 +174,12 @@ if __name__ == '__main__':
     a = np.random.randn(7,1)
     v, dir = carai.forward(a)
     w, b = carai.get_weights()
+    car_ai3.assign_weights(w,b)
+    for (l1, l2) in zip(carai.fullyconnect_list, car_ai3.fullyconnect_list):
+        print(l1.weights == l2.weights)
     carAIs = GeneOptimize.gene_algo(carai, 10)
-    carat_2 = carAIs[1]
-    v2,dir2 = carat_2.forward(a)
-    carai_2 = carAI()
-    carai.save("test1.npz")
-    carai_2.load("test1.npz")
-    print("-------", carai.get_weights()[0][0] == carai_2.get_weights()[0][0])
+    for c in carAIs:
+        print(c == carai)
 
 
 
