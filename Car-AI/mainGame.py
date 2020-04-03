@@ -202,8 +202,8 @@ def testAI(filename):
 
 
 if __name__ == '__main__':
-    # gameStart()
-    filename = "goal_para/goal_76.npz"
-    testAI(filename)
+    gameStart()
+    # filename = "goal_para/goal_76.npz"
+    # testAI(filename)
 
 
